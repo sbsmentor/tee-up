@@ -167,7 +167,7 @@ input[type=password]{font:inherit;color:var(--ink);background:var(--bg);border:1
 <div class="gate" id="gate" hidden>
   <div class="card gatecard">
     <div class="step-head"><span class="k">태블릿 처음 설정 · 한 번만 하면 돼요</span><h2>지점 계정으로 로그인</h2><p class="muted">팀장님이 이 태블릿에서 한 번만 로그인해 두면, 다음부터는 멘토 이름만 누르면 돼요.</p></div>
-    <div class="field"><label for="g-email">지점 계정 이메일</label><input type="text" id="g-email" inputmode="email" autocomplete="username"></div>
+    <div class="field"><label for="g-email">지점 계정 이메일</label><input type="text" id="g-email" inputmode="email" autocomplete="username" value="gangnam-branch@example.com"></div>
     <div class="field"><label for="g-pw">비밀번호</label><input type="password" id="g-pw" autocomplete="current-password"></div>
     <div class="actions"><button type="button" class="btn primary" id="g-login">로그인</button></div>
     <div class="notice err" id="g-err" hidden></div>
@@ -203,12 +203,12 @@ input[type=password]{font:inherit;color:var(--ink);background:var(--bg);border:1
 <script>
 /* ===== Firebase 설정: 콘솔 > 프로젝트 설정 > 내 앱(웹) 의 firebaseConfig 값을 그대로 붙여 넣으세요 ===== */
 const FIREBASE_CONFIG = {
-  apiKey: "여기에_apiKey",
-  authDomain: "여기에_authDomain",
-  projectId: "여기에_projectId",
-  storageBucket: "여기에_storageBucket",
-  messagingSenderId: "여기에_messagingSenderId",
-  appId: "여기에_appId"
+  apiKey: "AIzaSyCpN6nIJRKcDlX1rSTyiLIjUrR6sguXtl4",
+  authDomain: "tee-7b01b.firebaseapp.com",
+  projectId: "tee-7b01b",
+  storageBucket: "tee-7b01b.firebasestorage.app",
+  messagingSenderId: "182185324886",
+  appId: "1:182185324886:web:4c48eb4eff3797a0f366f7"
 };
 /* 처음 멘토 목록 (앱 안 '멘토 목록 고치기'에서 바꿀 수 있어요) */
 const DEFAULT_MENTORS = ["이기건","김기은","김동혁","정승운","조영승","황유진","박연우","제갈배준","이민희","안소현","이연재","최인규","윤초롱","김나영","이종혁","강민석","손병운","박무경"];
