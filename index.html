@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>나를 알려주세요</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 레이아웃: 상단 탭(작성/기록) → 단계 표시줄 → 단계 카드 → 하단 고정 이동 버튼. 기록은 검색 + 목록 → 상세 */
+:root{
+  --bg:#F2F4F8; --surface:#FFFFFF; --ink:#17213A; --muted:#5E6982; --line:#DDE2EC;
+  --accent:#2F56D9; --accent-soft:#E7EDFD; --accent-ink:#FFFFFF; --ok:#13936F; --danger:#C93C3C;
+  --display:"Do Hyeon","IBM Plex Sans KR",system-ui,sans-serif;
+  --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F131D; --surface:#171D2B; --ink:#E7EBF5; --muted:#9AA4BC; --line:#29314A;
+  --accent:#7D98FF; --accent-soft:#222C4C; --accent-ink:#0E1424; --ok:#3FD1A8; --danger:#FF8A8A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F131D; --surface:#171D2B; --ink:#E7EBF5; --muted:#9AA4BC; --line:#29314A;
+  --accent:#7D98FF; --accent-soft:#222C4C; --accent-ink:#0E1424; --ok:#3FD1A8; --danger:#FF8A8A; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{margin:0}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 120px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:1.9rem;line-height:1.15}
+h2{font-size:1.5rem}
+h3{font-size:1.15rem}
+p{margin:0}
+.muted{color:var(--muted)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tabs{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.tabs button{border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:9px;font-weight:700}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.tabs .n{font-variant-numeric:tabular-nums;opacity:.85;margin-left:4px}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:22px;min-width:0}
+
+/* 단계 표시 */
+.steps{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.steps button{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 12px;font-size:.85rem;display:inline-flex;gap:6px;align-items:center}
+.steps button .d{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.steps button.done .d{background:var(--ok)}
+.steps button[aria-current="step"]{border-color:var(--accent);color:var(--ink);font-weight:700}
+.steps button[aria-current="step"] .d{background:var(--accent)}
+.bar{height:6px;background:var(--line);border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.step-head{display:flex;flex-direction:column;gap:4px}
+.step-head .k{font-size:.85rem;color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* 질문 */
+.q{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:10px}
+.q legend{font-weight:700;padding:0;margin-bottom:10px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.q legend .num{color:var(--accent);font-variant-numeric:tabular-nums}
+.tag{font-size:.75rem;font-weight:500;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:1px 7px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt span{display:inline-flex;align-items:center;gap:7px;padding:10px 15px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);cursor:pointer;user-select:none;transition:background .12s,border-color .12s;min-height:44px}
+.opt span::before{content:"";width:15px;height:15px;border-radius:50%;border:1.5px solid var(--muted);flex:none}
+.opt.box span::before{border-radius:4px}
+.opt input:checked + span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.opt input:checked + span::before{border-color:var(--accent-ink);background:var(--accent-ink);box-shadow:inset 0 0 0 3px var(--accent)}
+.opt input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+.opt span:hover{border-color:var(--accent)}
+.subj .opt span{border-radius:12px}
+.divider{height:1px;background:var(--line)}
+
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:6px;flex:1 1 220px;min-width:0}
+.field label{font-weight:700}
+input[type=text],input[type=search]{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+.birth{display:flex;gap:10px;align-items:center}
+.birth input{flex:1;min-width:0}
+.age{font-weight:700;color:var(--accent);white-space:nowrap;font-variant-numeric:tabular-nums}
+.age.warn{color:var(--muted);font-weight:400;font-size:.85rem}
+
+/* 하단 이동 */
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));z-index:5}
+.nav .in{max-width:720px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.nav .grow{flex:1;font-size:.85rem;color:var(--muted);min-width:0}
+.btn{font-weight:700;border-radius:11px;padding:11px 20px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);min-height:46px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn:disabled{opacity:.45;cursor:default}
+
+/* 확인 단계 · 상세 */
+.sumgroup{display:flex;flex-direction:column;gap:8px}
+.sumgroup h3{color:var(--accent)}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:6px 14px;font-size:.95rem}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:500}
+.kv dd.none{color:var(--muted);font-weight:400}
+@media (max-width:480px){.kv{grid-template-columns:1fr}.kv dd{margin-bottom:6px}}
+.notice{border-radius:12px;padding:12px 14px;background:var(--accent-soft);font-size:.92rem}
+.notice.err{background:transparent;border:1.5px solid var(--danger);color:var(--danger)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toast{color:var(--ok);font-weight:700;font-size:.92rem}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.92rem}
+
+/* 기록 목록 */
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:flex;justify-content:space-between;gap:12px;align-items:center;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;color:var(--ink)}
+.item:hover{border-color:var(--accent)}
+.item .nm{font-weight:700;font-size:1.05rem}
+.item .meta{font-size:.85rem;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.chip{font-size:.78rem;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:1px 8px}
+.item .when{font-size:.8rem;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);text-align:center;padding:28px 10px}
+.whobox{display:flex;align-items:center;gap:6px;font-size:.95rem}
+.link{border:0;background:transparent;color:var(--accent);font-weight:700;padding:6px 4px;text-decoration:underline;text-underline-offset:3px}
+input[type=password]{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+.gate{position:fixed;inset:0;z-index:30;background:var(--bg);overflow:auto;display:flex;align-items:flex-start;justify-content:center;
+  padding:max(40px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+.gatecard{width:100%;max-width:640px}
+.mentors{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.mentors button{font-weight:700;font-size:1.05rem;padding:16px 10px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);min-height:60px}
+.mentors button:hover,.mentors button:focus-visible{border-color:var(--accent);color:var(--accent)}
+.mentors button.me{border-color:var(--accent);background:var(--accent-soft)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1>나를 알려주세요</h1>
+    <div class="whobox"><span class="muted" style="font-size:.85rem">상담 멘토</span> <b id="who">-</b> <button type="button" class="link" id="change">바꾸기</button></div>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-fill" aria-selected="true">작성하기</button>
+      <button type="button" role="tab" id="tab-list" aria-selected="false">저장된 기록<span class="n" id="cnt"></span></button>
+    </div>
+  </div>
+
+  <!-- 작성 -->
+  <section id="view-fill" style="display:flex;flex-direction:column;gap:14px">
+    <div class="steps" id="steps" aria-label="단계"></div>
+    <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+    <div class="notice" id="editing" hidden></div>
+    <div class="card" id="stage"></div>
+  </section>
+
+  <!-- 기록 -->
+  <section id="view-list" hidden style="display:flex;flex-direction:column;gap:14px">
+    <input type="search" id="search" placeholder="이름으로 찾기" aria-label="이름으로 찾기" autocomplete="off">
+    <div class="actions">
+      <button type="button" class="btn" id="export">기록 백업하기</button>
+    </div>
+    <p class="muted" style="font-size:.85rem">기록은 지점 서버에 저장돼서 어느 태블릿에서든 같이 보여요. 백업 파일은 필요할 때만 받으세요.</p>
+    <div class="notice" id="list-note" hidden></div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <!-- 상세 -->
+  <section id="view-detail" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="actions"><button type="button" class="btn" id="back">← 목록으로</button></div>
+    <div class="card" id="detail"></div>
+  </section>
+</div>
+
+<div class="gate" id="gate" hidden>
+  <div class="card gatecard">
+    <div class="step-head"><span class="k">태블릿 처음 설정 · 한 번만 하면 돼요</span><h2>지점 계정으로 로그인</h2><p class="muted">팀장님이 이 태블릿에서 한 번만 로그인해 두면, 다음부터는 멘토 이름만 누르면 돼요.</p></div>
+    <div class="field"><label for="g-email">지점 계정 이메일</label><input type="text" id="g-email" inputmode="email" autocomplete="username"></div>
+    <div class="field"><label for="g-pw">비밀번호</label><input type="password" id="g-pw" autocomplete="current-password"></div>
+    <div class="actions"><button type="button" class="btn primary" id="g-login">로그인</button></div>
+    <div class="notice err" id="g-err" hidden></div>
+  </div>
+</div>
+
+<div class="gate" id="picker" hidden>
+  <div class="card gatecard">
+    <div class="step-head"><span class="k">상담 시작</span><h2>누가 상담하나요?</h2><p class="muted">이름을 누르면 바로 시작해요. 저장한 기록에 작성 멘토로 남아요.</p></div>
+    <div class="mentors" id="mentors"></div>
+    <div class="divider"></div>
+    <div class="actions"><button type="button" class="link" id="m-edit">멘토 목록 고치기</button><button type="button" class="link" id="m-close" hidden>닫기</button></div>
+    <div id="m-editor" hidden style="display:flex;flex-direction:column;gap:10px">
+      <label for="m-text" style="font-weight:700">멘토 이름 (한 줄에 한 명)</label>
+      <textarea id="m-text" rows="8" style="font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%"></textarea>
+      <div class="actions"><button type="button" class="btn primary" id="m-save">목록 저장</button><button type="button" class="btn danger" id="g-logout">이 태블릿 로그아웃</button></div>
+      <div class="notice" id="m-note" hidden></div>
+    </div>
+  </div>
+</div>
+
+<div class="nav" id="nav">
+  <div class="in">
+    <button type="button" class="btn" id="prev">이전</button>
+    <span class="grow" id="navtxt"></span>
+    <button type="button" class="btn primary" id="next">다음</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ===== Firebase 설정: 콘솔 > 프로젝트 설정 > 내 앱(웹) 의 firebaseConfig 값을 그대로 붙여 넣으세요 ===== */
+const FIREBASE_CONFIG = {
+  apiKey: "여기에_apiKey",
+  authDomain: "여기에_authDomain",
+  projectId: "여기에_projectId",
+  storageBucket: "여기에_storageBucket",
+  messagingSenderId: "여기에_messagingSenderId",
+  appId: "여기에_appId"
+};
+/* 처음 멘토 목록 (앱 안 '멘토 목록 고치기'에서 바꿀 수 있어요) */
+const DEFAULT_MENTORS = ["이기건","김기은","김동혁","정승운","조영승","황유진","박연우","제갈배준","이민희","안소현","이연재","최인규","윤초롱","김나영","이종혁","강민석","손병운","박무경"];
+/* ---------- 질문 ---------- */
+const GROUPS = [
+  {key:"me", title:"나는 어떤 사람인가요", sub:"정답은 없어요. 지금 나와 가장 가까운 걸 골라 주세요.", items:[
+    {id:"c1", q:"나는 어느 쪽에 가까워요?", o:["내성적인 편","외향적인 편","반반이에요"]},
+    {id:"c2", q:"처음 만난 사람과 이야기할 때", o:["먼저 말을 거는 편","상대가 걸어 주면 편해요","친해지는 데 시간이 걸려요"]},
+    {id:"c3", q:"새로운 걸 배울 때 나는", o:["설명을 다 듣고 시작","일단 해 보면서 배움","예시를 보고 따라 함"]},
+    {id:"c4", q:"수업 분위기는 이런 게 좋아요", o:["조용히 집중","질문을 많이 주고받기","같이 하는 사람이 있으면 좋음"]},
+    {id:"c5", q:"피드백은 이렇게 받고 싶어요", o:["바로 직접적으로","부드럽게 돌려서","잘한 점 먼저"]},
+    {id:"c6", q:"모르는 게 생기면", o:["바로 물어봐요","혼자 찾아보고 물어봐요","물어보기 어려워서 넘어가요"]},
+  ]},
+  {key:"talk", title:"면담과 연락", sub:"멘토가 어떻게 연락하면 편한지 알려 주세요.", items:[
+    {id:"c7", q:"멘토 면담은 이 정도가 좋아요", o:["2주에 한 번","한 달에 한 번","필요할 때만"]},
+    {id:"c8", q:"연락은 이걸로 해 주세요", o:["카톡","전화","문자"], m:true},
+    {id:"c9", q:"연락받기 편한 시간", o:["오전","오후","저녁","주말"], m:true},
+  ]},
+  {key:"goal", title:"목표와 일정", sub:"배우는 목적과 가능한 시간을 알려 주세요.", items:[
+    {id:"c10", q:"배우는 목표", o:["취업","입시","취미","창업·1인 개발","부업·수익","아직 모르겠어요"], m:true},
+    {id:"c11", q:"수업 가능한 요일", o:["월","화","수","목","금","토","일"], m:true},
+    {id:"c12", q:"수업 가능한 시간대", o:["오전","오후","저녁"], m:true},
+    {id:"c13", q:"수업 방식", o:["대면","비대면","상관없어요"]},
+    {id:"c14", q:"등록은 누구와 같이 결정해요?", o:["혼자 결정","부모님","배우자·가족","친구·지인"], m:true},
+    {id:"c15", q:"지금 제일 걱정되는 것", o:["실력","비용","시간","진로","꾸준히 할 수 있을지"], m:true},
+    {id:"c16", q:"학원에 제일 바라는 것", o:["현업 강사 피드백","포트폴리오 완성","취업 연계","꾸준한 관리","같이 배우는 친구"], m:true},
+  ]},
+];
+const SUBJECTS = {
+  "아트웍":[
+    {id:"a1", q:"그림 경험", o:["처음이에요","취미로 가끔","꾸준히 그려요"]},
+    {id:"a2", q:"쓰는 도구", o:["종이","아이패드","갤럭시탭","판타블렛","액정타블렛","없어요"], m:true},
+    {id:"a3", q:"써 본 프로그램", o:["없어요","포토샵","클립스튜디오","프로크리에이트"], m:true},
+    {id:"a4", q:"제일 어려운 부분", o:["인체","얼굴","색감","명암","배경"], m:true},
+    {id:"a5", q:"기초 다음에 하고 싶은 것", o:["게임원화","웹툰","이모티콘","일러스트","아직 모르겠어요"], m:true},
+  ],
+  "게임원화":[
+    {id:"w1", q:"그리고 싶은 것", o:["캐릭터","배경","몬스터","아이템·무기","UI"], m:true},
+    {id:"w2", q:"좋아하는 그림체", o:["만화풍","반실사","실사풍"]},
+    {id:"w3", q:"지금 가진 작업물", o:["없어요","몇 장 있어요","포트폴리오로 묶을 정도"]},
+    {id:"w4", q:"하루 그림 그리는 시간", o:["30분 이하","1~2시간","3시간 이상"]},
+    {id:"w5", q:"원화 목표", o:["게임사 취업","외주·프리랜서","입시","취미"], m:true},
+  ],
+  "게임그래픽(3D)":[
+    {id:"g1", q:"관심 있는 분야", o:["캐릭터 모델링","배경 모델링","애니메이션","이펙트"], m:true},
+    {id:"g2", q:"써 본 프로그램", o:["없어요","블렌더","마야","3ds Max","지브러시","섭스턴스"], m:true},
+    {id:"g3", q:"작업 스타일", o:["빨리 만들고 고치기","디테일을 오래 다듬기"]},
+    {id:"g4", q:"집 컴퓨터", o:["3D 작업 가능","잘 모르겠어요","노트북만 있어요"]},
+    {id:"g5", q:"3D 목표", o:["게임사 취업","외주·프리랜서","입시","취미"], m:true},
+  ],
+  "게임기획":[
+    {id:"p1", q:"관심 있는 기획", o:["시스템·밸런스","스토리·세계관","레벨디자인","콘텐츠","라이브 운영"], m:true},
+    {id:"p2", q:"좋아하는 장르", o:["RPG","액션","전략","퍼즐","캐주얼","FPS","시뮬레이션"], m:true},
+    {id:"p3", q:"생각을 정리할 때", o:["글로 써요","말로 설명해요","그림·도식으로 그려요"]},
+    {id:"p4", q:"써 본 도구", o:["엑셀","파워포인트","노션","없어요"], m:true},
+    {id:"p5", q:"기획 목표", o:["게임사 취업","입시","1인 개발","취미"], m:true},
+  ],
+  "게임프로그래밍":[
+    {id:"r1", q:"코딩 경험", o:["처음이에요","조금 해 봤어요","수업·독학으로 배움","실무 경험 있음"]},
+    {id:"r2", q:"써 본 언어", o:["없어요","C","C++","C#","파이썬","자바","웹(JS 등)"], m:true},
+    {id:"r3", q:"써 본 엔진", o:["없어요","유니티","언리얼","둘 다"]},
+    {id:"r4", q:"문제가 안 풀릴 때", o:["끝까지 붙잡아요","쉬었다가 다시 해요","바로 물어봐요"]},
+    {id:"r5", q:"프로그래밍 목표", o:["게임사 취업","1인 개발","입시","취미"], m:true},
+  ],
+  "게임QA":[
+    {id:"t1", q:"하루 게임 시간", o:["1시간 미만","1~3시간","3시간 이상"]},
+    {id:"t2", q:"주로 하는 장르", o:["RPG","액션","FPS","전략","캐주얼·모바일","콘솔"], m:true},
+    {id:"t3", q:"버그를 제보해 본 적", o:["있어요","없어요"]},
+    {id:"t4", q:"같은 걸 반복해서 확인하는 일", o:["잘 맞아요","보통이에요","힘들어요"]},
+    {id:"t5", q:"QA 목표", o:["게임업계 첫 진입","QA로 커리어 쌓기","다른 직무로 가는 발판"], m:true},
+  ],
+  "웹툰":[
+    {id:"u1", q:"웹툰에서 더 끌리는 것", o:["그림","스토리","둘 다"]},
+    {id:"u2", q:"좋아하는 장르", o:["판타지","로맨스","일상·개그","액션","스릴러","학원물"], m:true},
+    {id:"u3", q:"연재 경험", o:["없어요","SNS에 올려 봄","도전만화 올려 봄","정식 연재"]},
+    {id:"u4", q:"쓰는 도구", o:["아이패드","갤럭시탭","판타블렛","액정타블렛","없어요"], m:true},
+    {id:"u5", q:"웹툰 목표", o:["작가 데뷔","어시스턴트","웹툰 회사 취업","취미"], m:true},
+  ],
+  "웹소설":[
+    {id:"n1", q:"좋아하는 장르", o:["로맨스판타지","현대판타지","판타지","무협","로맨스","미스터리"], m:true},
+    {id:"n2", q:"써 본 경험", o:["없어요","몇 편 써 봤어요","한 편 완결","연재 중"]},
+    {id:"n3", q:"하루 쓸 수 있는 시간", o:["30분 이하","1~2시간","3시간 이상"]},
+    {id:"n4", q:"쓰다가 막히는 부분", o:["시작","중반 전개","캐릭터","결말","꾸준히 쓰기"], m:true},
+    {id:"n5", q:"웹소설 목표", o:["연재 데뷔","부업","전업 작가","취미"], m:true},
+  ],
+  "이모티콘":[
+    {id:"e1", q:"내 캐릭터", o:["아직 없어요","구상만 있어요","이미 만들어 놨어요"]},
+    {id:"e2", q:"만들고 싶은 종류", o:["멈춰 있는 이모티콘","움직이는 이모티콘","둘 다"]},
+    {id:"e3", q:"쓰는 기기", o:["아이패드","갤럭시탭","판타블렛","없어요"], m:true},
+    {id:"e4", q:"카카오 제안 경험", o:["없어요","제안했는데 미승인","승인받은 적 있어요"]},
+    {id:"e5", q:"이모티콘 목표", o:["출시하기","만들어 보기","꾸준한 수익"], m:true},
+  ],
+  "입시":[
+    {id:"i1", q:"지금 학년", o:["중3","고1","고2","고3","N수"]},
+    {id:"i2", q:"학교 유형", o:["일반고","특성화고","기타"]},
+    {id:"i3", q:"지원하고 싶은 분야", o:["게임기획","게임프로그래밍","게임원화","게임그래픽"], m:true},
+    {id:"i4", q:"준비하려는 전형", o:["면접·포트폴리오","실기","아직 모르겠어요"]},
+    {id:"i5", q:"부모님 생각", o:["찬성하세요","반대하세요","아직 이야기 안 했어요"]},
+  ],
+};
+const SUBJ_NAMES = Object.keys(SUBJECTS);
+
+/* ---------- 상태 ---------- */
+const DRAFT_KEY = "naal-draft-v2";
+let form = blank();
+let step = 0;
+let editingId = null;
+let records = [];
+let db = null, user = null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function blank(){ return {name:"", birth:"", subjects:[], answers:{}}; }
+function loadDraft(){ try{ const d = JSON.parse(localStorage.getItem(DRAFT_KEY)||"null"); if(d && d.form){ form = d.form; editingId = d.editingId||null; } }catch(e){} }
+function saveDraft(){ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({form, editingId})); }catch(e){} }
+function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
+
+/* ---------- 나이 ---------- */
+function parseBirth(v){
+  const d = String(v||"").replace(/\D/g,"");
+  let y,m,dd;
+  if(d.length===8){ y=+d.slice(0,4); m=+d.slice(4,6); dd=+d.slice(6,8); }
+  else if(d.length===6){ const yy=+d.slice(0,2), cy=new Date().getFullYear()%100; y = yy<=cy ? 2000+yy : 1900+yy; m=+d.slice(2,4); dd=+d.slice(4,6); }
+  else return null;
+  const dt = new Date(y,m-1,dd), now = new Date();
+  if(dt.getFullYear()!==y || dt.getMonth()!==m-1 || dt.getDate()!==dd || dt>now) return null;
+  let man = now.getFullYear()-y;
+  if(now.getMonth()<m-1 || (now.getMonth()===m-1 && now.getDate()<dd)) man--;
+  return {text:`${y}.${String(m).padStart(2,"0")}.${String(dd).padStart(2,"0")}`, korean: now.getFullYear()-y+1, man};
+}
+const ageText = b => b ? `한국나이 ${b.korean}살 (만 ${b.man}세)` : "";
+
+/* ---------- 단계 ---------- */
+function stepList(){
+  const s = [{key:"basic", label:"기본 정보"}];
+  GROUPS.forEach(g=>s.push({key:g.key, label:g.title, group:g}));
+  form.subjects.forEach(n=>s.push({key:"s:"+n, label:n, subject:n}));
+  s.push({key:"review", label:"확인·저장"});
+  return s;
+}
+function itemsOf(st){ return st.group ? st.group.items : st.subject ? SUBJECTS[st.subject] : []; }
+function isDone(st){
+  if(st.key==="basic") return !!form.name.trim();
+  if(st.key==="review") return false;
+  const it = itemsOf(st); return it.length && it.every(i=>(form.answers[i.id]||[]).length);
+}
+
+function optHTML(qid, label, multi){
+  const on = (form.answers[qid]||[]).includes(label);
+  const id = ("o-"+qid+"-"+label).replace(/[^\w가-힣-]/g,"_");
+  return `<label class="opt${multi?" box":""}"><input type="${multi?"checkbox":"radio"}" id="${id}" name="${qid}" value="${esc(label)}"${on?" checked":""}><span>${esc(label)}</span></label>`;
+}
+function qHTML(it, n){
+  return `<fieldset class="q" data-q="${it.id}"><legend><span class="num">${n}</span><span>${esc(it.q)}</span>${it.m?'<span class="tag">여러 개 가능</span>':""}</legend><div class="opts">${it.o.map(o=>optHTML(it.id,o,it.m)).join("")}</div></fieldset>`;
+}
+
+function render(){
+  const steps = stepList();
+  if(step >= steps.length) step = steps.length-1;
+  const st = steps[step];
+  $("#steps").innerHTML = steps.map((s,i)=>`<button type="button" data-i="${i}" class="${isDone(s)?"done":""}"${i===step?' aria-current="step"':""}><span class="d"></span>${esc(s.label)}</button>`).join("");
+  const cur = $("#steps").querySelector('[aria-current="step"]'); if(cur) cur.scrollIntoView({block:"nearest",inline:"nearest"});
+  $("#bar").style.width = `${Math.round(step/(steps.length-1)*100)}%`;
+  const ed = $("#editing");
+  if(editingId){ ed.hidden=false; ed.textContent = `저장된 기록을 고치는 중이에요. 저장하면 기존 기록이 바뀝니다.`; } else ed.hidden=true;
+
+  const head = (t,sub) => `<div class="step-head"><span class="k">${step+1} / ${steps.length}</span><h2>${esc(t)}</h2>${sub?`<p class="muted">${esc(sub)}</p>`:""}</div>`;
+  let html = "";
+  if(st.key==="basic"){
+    const b = parseBirth(form.birth);
+    html = head("기본 정보","이름과 생년월일, 관심 있는 과목을 알려 주세요.") +
+      `<div class="row">
+        <div class="field"><label for="f-name">이름</label><input type="text" id="f-name" value="${esc(form.name)}" placeholder="이름" autocomplete="off"></div>
+        <div class="field"><label for="f-birth">생년월일</label><div class="birth"><input type="text" id="f-birth" inputmode="numeric" value="${esc(form.birth)}" placeholder="예: 20080315" autocomplete="off"><span class="age" id="f-age" aria-live="polite">${esc(ageText(b))}</span></div></div>
+      </div>
+      <div class="divider"></div>
+      <fieldset class="q subj" data-q="__subj"><legend><span>관심 있는 과목</span><span class="tag">여러 개 가능</span></legend><div class="opts">${SUBJ_NAMES.map(n=>{const on=form.subjects.includes(n);const id="s-"+n.replace(/[^\w가-힣]/g,"_");return `<label class="opt box"><input type="checkbox" id="${id}" value="${esc(n)}"${on?" checked":""}><span>${esc(n)}</span></label>`;}).join("")}</div><p class="muted" style="font-size:.85rem">고른 과목마다 질문이 5개씩 이어져요.</p></fieldset>`;
+  } else if(st.group || st.subject){
+    const items = itemsOf(st);
+    html = head(st.group ? st.group.title : st.subject, st.group ? st.group.sub : "해당되는 것을 골라 주세요.") + items.map((it,i)=>qHTML(it,i+1)).join('<div class="divider"></div>');
+  } else {
+    html = head("확인하고 저장하기","고른 내용을 확인하고 저장해 주세요.") + summaryHTML(form) +
+      `<div class="actions">
+        <button type="button" class="btn primary" id="save">${editingId?"고친 내용 저장":"저장하기"}</button>
+        <button type="button" class="btn" id="copy">상담일지용 복사</button>
+        <button type="button" class="btn" id="newform">새로 작성</button>
+        <span class="toast" id="toast" role="status"></span>
+      </div>
+      <div class="notice" id="savenote" hidden></div>
+      <div class="confirm" id="newconfirm" hidden><span>지금 작성한 내용을 지우고 새로 시작할까요?</span><button type="button" class="btn danger" id="new-yes">지우고 새로 시작</button><button type="button" class="btn" id="new-no">취소</button></div>`;
+  }
+  $("#stage").innerHTML = html;
+  $("#prev").disabled = step===0;
+  const isLast = step===steps.length-1;
+  $("#next").hidden = isLast;
+  const answered = steps.filter(isDone).length;
+  $("#navtxt").textContent = `${answered} / ${steps.length-1} 단계 완료`;
+  if(st.key==="review") bindReview();
+}
+
+function summaryHTML(f){
+  const b = parseBirth(f.birth);
+  const dd = (v) => v && v.length ? `<dd>${esc(v.join(", "))}</dd>` : `<dd class="none">선택 안 함</dd>`;
+  let h = `<div class="sumgroup"><h3>기본 정보</h3><dl class="kv">
+    <dt>이름</dt><dd${f.name?"":' class="none"'}>${esc(f.name||"미입력")}</dd>
+    <dt>생년월일</dt><dd${b?"":' class="none"'}>${b?esc(b.text+" · "+ageText(b)):"미입력"}</dd>
+    <dt>관심 과목</dt>${dd(f.subjects)}</dl></div>`;
+  GROUPS.forEach(g=>{ h += `<div class="sumgroup"><h3>${esc(g.title)}</h3><dl class="kv">${g.items.map(i=>`<dt>${esc(i.q)}</dt>${dd(f.answers[i.id])}`).join("")}</dl></div>`; });
+  (f.subjects||[]).forEach(s=>{ if(!SUBJECTS[s]) return; h += `<div class="sumgroup"><h3>${esc(s)}</h3><dl class="kv">${SUBJECTS[s].map(i=>`<dt>${esc(i.q)}</dt>${dd(f.answers[i.id])}`).join("")}</dl></div>`; });
+  return h;
+}
+function summaryText(f){
+  const b = parseBirth(f.birth);
+  const L = ["■ 학생 성향 체크", `* 이름 : ${f.name||"(미입력)"}`, `* 생년월일 : ${b?`${b.text} (한국나이 ${b.korean}살 / 만 ${b.man}세)`:"(미입력)"}`, `* 관심 과목 : ${(f.subjects||[]).join(", ")||"미선택"}`];
+  GROUPS.forEach(g=>{ const got=g.items.filter(i=>(f.answers[i.id]||[]).length); if(!got.length) return; L.push("",`[${g.title}]`); got.forEach(i=>L.push(`* ${i.q} : ${f.answers[i.id].join(", ")}`)); });
+  (f.subjects||[]).forEach(s=>{ const got=(SUBJECTS[s]||[]).filter(i=>(f.answers[i.id]||[]).length); if(!got.length) return; L.push("",`[${s}]`); got.forEach(i=>L.push(`* ${i.q} : ${f.answers[i.id].join(", ")}`)); });
+  return L.join("\n");
+}
+function copyText(text, toastEl, fallbackEl){
+  const done = m => { toastEl.textContent = m; setTimeout(()=>toastEl.textContent="",2500); };
+  try{ navigator.clipboard.writeText(text).then(()=>done("복사했어요"), ()=>fallback()); }catch(e){ fallback(); }
+  function fallback(){
+    const ta = document.createElement("textarea"); ta.value=text; ta.style.width="100%"; ta.style.minHeight="160px"; ta.readOnly=true;
+    fallbackEl.hidden=false; fallbackEl.replaceChildren(document.createTextNode("복사가 막혀 있어요. 아래 글을 길게 눌러 복사해 주세요."), ta); ta.select(); done("");
+  }
+}
+
+/* ---------- 작성 화면 입력 ---------- */
+$("#stage").addEventListener("input", e=>{
+  if(e.target.id==="f-name"){ form.name = e.target.value; saveDraft(); refreshSteps(); }
+  if(e.target.id==="f-birth"){
+    form.birth = e.target.value; saveDraft();
+    const b = parseBirth(form.birth), el = $("#f-age");
+    el.classList.toggle("warn", !b && !!form.birth.trim());
+    el.textContent = b ? ageText(b) : (form.birth.trim() ? "숫자 8자리로 적어 주세요" : "");
+  }
+});
+$("#stage").addEventListener("change", e=>{
+  const fs = e.target.closest("fieldset"); if(!fs) return;
+  if(fs.dataset.q==="__subj"){ form.subjects = SUBJ_NAMES.filter(n=>fs.querySelector(`input[value="${CSS.escape(n)}"]`).checked); }
+  else { form.answers[fs.dataset.q] = [...fs.querySelectorAll("input:checked")].map(i=>i.value); }
+  saveDraft(); refreshSteps();
+});
+function refreshSteps(){
+  const steps = stepList();
+  $("#steps").querySelectorAll("button").forEach((btn,i)=>{ if(steps[i]) btn.classList.toggle("done", isDone(steps[i])); });
+  if($("#steps").children.length !== steps.length){ const keep=step; render(); step=keep; }
+  $("#navtxt").textContent = `${steps.filter(isDone).length} / ${steps.length-1} 단계 완료`;
+}
+$("#steps").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; step=+b.dataset.i; render(); window.scrollTo({top:0}); });
+$("#prev").addEventListener("click", ()=>{ if(step>0){ step--; render(); window.scrollTo({top:0}); } });
+$("#next").addEventListener("click", ()=>{ step++; render(); window.scrollTo({top:0}); });
+
+/* ---------- 저장 ---------- */
+function bindReview(){
+  $("#copy").addEventListener("click", ()=>copyText(summaryText(form), $("#toast"), $("#savenote")));
+  $("#newform").addEventListener("click", ()=>{ $("#newconfirm").hidden=false; });
+  $("#new-no").addEventListener("click", ()=>{ $("#newconfirm").hidden=true; });
+  $("#new-yes").addEventListener("click", ()=>{ resetForm(); });
+  const save = $("#save");
+  if(!db){ save.disabled = true; const n=$("#savenote"); n.hidden=false; n.textContent = "서버에 연결되지 않았어요. 인터넷 연결과 태블릿 로그인을 확인해 주세요."; return; }
+  save.addEventListener("click", doSave);
+}
+async function doSave(){
+  const save=$("#save"), note=$("#savenote");
+  if(!form.name.trim()){ note.hidden=false; note.className="notice err"; note.textContent="이름을 먼저 적어 주세요. (1단계 기본 정보)"; return; }
+  save.disabled=true; save.textContent="저장 중…";
+  const b = parseBirth(form.birth);
+  const body = {
+    name: form.name.trim(), birth: form.birth.trim(), birthText: b?b.text:"", birthYear: b? +b.text.slice(0,4) : null,
+    subjects: form.subjects.slice(), answers: JSON.parse(JSON.stringify(form.answers)),
+    updatedAt: new Date().toISOString(),
+  };
+  try{
+    const uid = currentMentor || null;
+    const col = db.collection("sheets");
+    if(editingId){
+      const prev = records.find(r=>r.id===editingId);
+      body.createdAt = prev?.createdAt || body.updatedAt; body.createdBy = prev?.createdBy || uid; body.updatedBy = uid;
+      await col.doc(editingId).set(body);
+    } else {
+      body.createdAt = body.updatedAt; body.createdBy = uid; body.updatedBy = uid;
+      await col.doc().set(body);
+    }
+    clearDraft();
+    note.hidden=false; note.className="notice"; note.textContent = `${body.name} 님 기록을 저장했어요. '저장된 기록'에서 다시 볼 수 있어요.`;
+    form = blank(); editingId = null; step = 0;
+    setTimeout(()=>{ render(); showList(); }, 900);
+  }catch(e){
+    save.disabled=false; save.textContent = editingId?"고친 내용 저장":"저장하기";
+    note.hidden=false; note.className="notice err";
+    note.textContent = e && e.code==="quota_exceeded" ? "저장 공간이 가득 찼어요. 오래된 기록을 지운 뒤 다시 저장해 주세요."
+      : e && e.code==="invalid_argument" ? "이 계정은 저장 권한이 없어요. 상담일지용 복사로 옮겨 주세요."
+      : "저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.";
+  }
+}
+function resetForm(){ form = blank(); editingId=null; step=0; clearDraft(); render(); window.scrollTo({top:0}); }
+
+/* ---------- 기록 목록 ---------- */
+function setView(v){
+  $("#view-fill").hidden = v!=="fill"; $("#view-list").hidden = v!=="list"; $("#view-detail").hidden = v!=="detail";
+  $("#nav").hidden = v!=="fill";
+  $("#tab-fill").setAttribute("aria-selected", v==="fill"); $("#tab-list").setAttribute("aria-selected", v!=="fill");
+  window.scrollTo({top:0});
+}
+function showList(){ setView("list"); renderList(); }
+$("#tab-fill").addEventListener("click", ()=>{ setView("fill"); render(); });
+$("#tab-list").addEventListener("click", showList);
+$("#back").addEventListener("click", showList);
+$("#search").addEventListener("input", renderList);
+
+const fmt = iso => { try{ const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }catch(e){ return ""; } };
+async function names(ids){ const m={}; ids.filter(Boolean).forEach(i=>m[i]={name:i}); return m; }
+
+async function renderList(){
+  const list = $("#list"), note = $("#list-note");
+  if(!db){ note.hidden=false; note.textContent="서버에 연결되지 않았어요. 인터넷 연결과 태블릿 로그인을 확인해 주세요."; list.innerHTML=""; return; }
+  const q = $("#search").value.trim();
+  const rows = records.filter(r=>!q || (r.name||"").includes(q));
+  if(!records.length){ list.innerHTML = `<div class="empty">아직 저장된 기록이 없어요.<br>'작성하기'에서 체크하고 마지막 단계에서 저장하면 여기에 쌓여요.</div>`; return; }
+  if(!rows.length){ list.innerHTML = `<div class="empty">'${esc(q)}' 이름의 기록이 없어요.</div>`; return; }
+  const ps = await names(rows.map(r=>r.createdBy));
+  list.innerHTML = rows.map(r=>{
+    const b = parseBirth(r.birth);
+    const who = ps[r.createdBy]?.name || "";
+    return `<button type="button" class="item" data-id="${esc(r.id)}"><div style="min-width:0"><div class="nm">${esc(r.name||"(이름 없음)")}</div><div class="meta">${b?esc(ageText(b)):"생년월일 미입력"}${who?" · 작성 "+esc(who):""}</div><div class="chips">${(r.subjects||[]).map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div></div><div class="when">${esc(fmt(r.updatedAt))}</div></button>`;
+  }).join("");
+}
+$("#list").addEventListener("click", e=>{ const b=e.target.closest(".item"); if(b) openDetail(b.dataset.id); });
+
+async function openDetail(id){
+  const r = records.find(x=>x.id===id); if(!r) return;
+  setView("detail");
+  const ps = await names([r.createdBy, r.updatedBy]);
+  const by = ps[r.createdBy]?.name ? ` · 작성 ${esc(ps[r.createdBy].name)}` : "";
+  $("#detail").innerHTML = `<div class="step-head"><span class="k">저장 ${esc(fmt(r.updatedAt))}${by}</span><h2>${esc(r.name||"(이름 없음)")}</h2></div>${summaryHTML(r)}
+    <div class="actions"><button type="button" class="btn primary" id="d-copy">상담일지용 복사</button><button type="button" class="btn" id="d-edit">고치기</button><button type="button" class="btn danger" id="d-del">삭제</button><span class="toast" id="d-toast" role="status"></span></div>
+    <div class="notice" id="d-note" hidden></div>
+    <div class="confirm" id="d-confirm" hidden><span>${esc(r.name)} 님 기록을 지울까요? 되돌릴 수 없어요.</span><button type="button" class="btn danger" id="d-yes">삭제</button><button type="button" class="btn" id="d-no">취소</button></div>`;
+  $("#d-copy").onclick = ()=>copyText(summaryText(r), $("#d-toast"), $("#d-note"));
+  $("#d-edit").onclick = ()=>{ form = {name:r.name||"", birth:r.birth||"", subjects:(r.subjects||[]).slice(), answers:JSON.parse(JSON.stringify(r.answers||{}))}; editingId = r.id; step = 0; saveDraft(); setView("fill"); render(); };
+  $("#d-del").onclick = ()=>{ $("#d-confirm").hidden=false; };
+  $("#d-no").onclick = ()=>{ $("#d-confirm").hidden=true; };
+  $("#d-yes").onclick = async ()=>{
+    try{ await db.collection("sheets").doc(r.id).delete(); showList(); }
+    catch(e){ const n=$("#d-note"); n.hidden=false; n.className="notice err"; n.textContent="지우지 못했어요. 이 계정에 삭제 권한이 없을 수 있어요."; }
+  };
+}
+
+/* ---------- 시작 ---------- */
+loadDraft();
+render();
+setView("fill");
+
+/* ---------- 서버 (Firebase) ---------- */
+const MENTOR_KEY = "naal-mentor";
+let currentMentor = null; try{ currentMentor = localStorage.getItem(MENTOR_KEY) || null; }catch(e){}
+let mentorList = DEFAULT_MENTORS.slice();
+let fs = null, unsubRecords = null, unsubMentors = null;
+const configured = !String(FIREBASE_CONFIG.apiKey).startsWith("여기에");
+
+function showWho(){ $("#who").textContent = currentMentor || "선택 안 함"; }
+function renderMentors(){
+  $("#mentors").innerHTML = mentorList.map(n=>`<button type="button" data-n="${esc(n)}" class="${n===currentMentor?"me":""}">${esc(n)}</button>`).join("");
+}
+function openPicker(){ renderMentors(); $("#m-editor").hidden=true; $("#m-close").hidden = !currentMentor; $("#picker").hidden=false; }
+$("#mentors").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  currentMentor = b.dataset.n; try{ localStorage.setItem(MENTOR_KEY, currentMentor); }catch(err){}
+  showWho(); $("#picker").hidden=true;
+});
+$("#change").addEventListener("click", openPicker);
+$("#m-close").addEventListener("click", ()=>{ $("#picker").hidden=true; });
+$("#m-edit").addEventListener("click", ()=>{ const ed=$("#m-editor"); ed.hidden=!ed.hidden; $("#m-text").value = mentorList.join("\n"); $("#m-note").hidden=true; });
+$("#m-save").addEventListener("click", async ()=>{
+  const list = [...new Set($("#m-text").value.split(/\n/).map(x=>x.trim()).filter(Boolean))];
+  const n = $("#m-note"); n.hidden=false;
+  if(!list.length){ n.className="notice err"; n.textContent="멘토 이름을 한 명 이상 적어 주세요."; return; }
+  try{ await fs.collection("naal_config").doc("mentors").set({list, updatedAt:new Date().toISOString()}); n.className="notice"; n.textContent=`멘토 ${list.length}명으로 저장했어요. 모든 태블릿에 같이 바뀌어요.`; }
+  catch(err){ n.className="notice err"; n.textContent="저장하지 못했어요. 인터넷 연결을 확인해 주세요."; }
+});
+$("#g-logout").addEventListener("click", async ()=>{ try{ await firebase.auth().signOut(); }catch(e){} try{ localStorage.removeItem(MENTOR_KEY); }catch(e){} currentMentor=null; showWho(); $("#picker").hidden=true; });
+
+$("#g-login").addEventListener("click", async ()=>{
+  const err = $("#g-err"); err.hidden=true;
+  const email = $("#g-email").value.trim(), pw = $("#g-pw").value;
+  if(!email || !pw){ err.hidden=false; err.textContent="이메일과 비밀번호를 모두 적어 주세요."; return; }
+  const btn=$("#g-login"); btn.disabled=true; btn.textContent="로그인 중…";
+  try{ await firebase.auth().signInWithEmailAndPassword(email, pw); $("#g-pw").value=""; }
+  catch(e){ err.hidden=false; err.textContent = (e && /network/.test(e.code||"")) ? "인터넷에 연결되지 않았어요." : "이메일이나 비밀번호가 맞지 않아요."; }
+  btn.disabled=false; btn.textContent="로그인";
+});
+
+function startData(){
+  db = { collection: (n) => fs.collection(n==="sheets" ? "naal_records" : n) };
+  let timer = setTimeout(()=>{ const n=$("#list-note"); n.hidden=false; n.className="notice"; n.textContent="기록을 아직 불러오지 못했어요. 인터넷이 느릴 수 있어요."; }, 10000);
+  unsubRecords = fs.collection("naal_records").orderBy("updatedAt","desc").onSnapshot(snap=>{
+    clearTimeout(timer); $("#list-note").hidden=true;
+    records = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    $("#cnt").textContent = records.length ? ` ${records.length}` : "";
+    if(!$("#view-list").hidden) renderList();
+  }, e=>{ clearTimeout(timer); const n=$("#list-note"); n.hidden=false; n.className="notice err"; n.textContent="기록을 불러올 권한이 없어요. 지점 계정으로 로그인했는지 확인해 주세요."; });
+  unsubMentors = fs.collection("naal_config").doc("mentors").onSnapshot(d=>{
+    const l = d.exists && Array.isArray(d.data().list) ? d.data().list : null;
+    mentorList = l && l.length ? l : DEFAULT_MENTORS.slice();
+    if(!$("#picker").hidden) renderMentors();
+  }, ()=>{});
+  if(stepList()[step].key==="review") render();
+}
+function stopData(){ if(unsubRecords) unsubRecords(); if(unsubMentors) unsubMentors(); unsubRecords=unsubMentors=null; db=null; records=[]; $("#cnt").textContent=""; }
+
+showWho();
+if(!configured){
+  $("#gate").hidden=false;
+  const err=$("#g-err"); err.hidden=false; err.textContent="아직 Firebase 설정값이 들어 있지 않아요. 파일 위쪽 FIREBASE_CONFIG에 값을 넣어 주세요.";
+  $("#g-login").disabled=true;
+} else {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+  fs = firebase.firestore();
+  firebase.auth().onAuthStateChanged(u=>{
+    if(u){ $("#gate").hidden=true; startData(); if(!currentMentor) openPicker(); }
+    else { stopData(); $("#picker").hidden=true; $("#gate").hidden=false; }
+  });
+}
+
+/* ---------- 백업 (서버 기록을 파일로 받기) ---------- */
+function stamp(){ const d=new Date(); return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`; }
+$("#export").addEventListener("click", ()=>{
+  const all = {}; records.forEach(r=>{ const {id, ...v} = r; all[id]=v; });
+  const blob = new Blob([JSON.stringify({app:"나를 알려주세요", exportedAt:new Date().toISOString(), records:all}, null, 2)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `나를알려주세요_백업_${stamp()}.json`;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  const n=$("#list-note"); n.hidden=false; n.className="notice"; n.textContent=`기록 ${records.length}건을 백업 파일로 받았어요.`;
+});
+</script>
+</body>
+</html>
