@@ -322,7 +322,8 @@ let db = null, user = null;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-function blank(){ return {name:"", birth:"", subjects:[], answers:{}}; }
+const JOBS = ["초등학생","중학생","고등학생","대학생","직장인","프리랜서","자영업","취업준비생"];
+function blank(){ return {name:"", birth:"", job:"", subjects:[], answers:{}}; }
 function loadDraft(){ try{ const d = JSON.parse(localStorage.getItem(DRAFT_KEY)||"null"); if(d && d.form){ form = d.form; editingId = d.editingId||null; } }catch(e){} }
 function saveDraft(){ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify({form, editingId})); }catch(e){} }
 function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
@@ -380,11 +381,12 @@ function render(){
   let html = "";
   if(st.key==="basic"){
     const b = parseBirth(form.birth);
-    html = head("기본 정보","이름과 생년월일, 관심 있는 과목을 알려 주세요.") +
+    html = head("기본 정보","이름, 생년월일, 직업, 관심 있는 과목을 알려 주세요.") +
       `<div class="row">
         <div class="field"><label for="f-name">이름</label><input type="text" id="f-name" value="${esc(form.name)}" placeholder="이름" autocomplete="off"></div>
         <div class="field"><label for="f-birth">생년월일</label><div class="birth"><input type="text" id="f-birth" inputmode="numeric" value="${esc(form.birth)}" placeholder="예: 20080315" autocomplete="off"><span class="age" id="f-age" aria-live="polite">${esc(ageText(b))}</span></div></div>
       </div>
+      <fieldset class="q" data-q="__job"><legend><span>직업</span></legend><div class="opts">${JOBS.map(j=>`<label class="opt"><input type="radio" name="f-job" id="j-${j}" value="${esc(j)}"${form.job===j?" checked":""}><span>${esc(j)}</span></label>`).join("")}</div></fieldset>
       <div class="divider"></div>
       <fieldset class="q subj" data-q="__subj"><legend><span>관심 있는 과목</span><span class="tag">여러 개 가능</span></legend><div class="opts">${SUBJ_NAMES.map(n=>{const on=form.subjects.includes(n);const id="s-"+n.replace(/[^\w가-힣]/g,"_");return `<label class="opt box"><input type="checkbox" id="${id}" value="${esc(n)}"${on?" checked":""}><span>${esc(n)}</span></label>`;}).join("")}</div><p class="muted" style="font-size:.85rem">고른 과목마다 질문이 5개씩 이어져요.</p></fieldset>`;
   } else if(st.group || st.subject){
@@ -416,6 +418,7 @@ function summaryHTML(f){
   let h = `<div class="sumgroup"><h3>기본 정보</h3><dl class="kv">
     <dt>이름</dt><dd${f.name?"":' class="none"'}>${esc(f.name||"미입력")}</dd>
     <dt>생년월일</dt><dd${b?"":' class="none"'}>${b?esc(b.text+" · "+ageText(b)):"미입력"}</dd>
+    <dt>직업</dt><dd${f.job?"":' class="none"'}>${esc(f.job||"선택 안 함")}</dd>
     <dt>관심 과목</dt>${dd(f.subjects)}</dl></div>`;
   GROUPS.forEach(g=>{ h += `<div class="sumgroup"><h3>${esc(g.title)}</h3><dl class="kv">${g.items.map(i=>`<dt>${esc(i.q)}</dt>${dd(f.answers[i.id])}`).join("")}</dl></div>`; });
   (f.subjects||[]).forEach(s=>{ if(!SUBJECTS[s]) return; h += `<div class="sumgroup"><h3>${esc(s)}</h3><dl class="kv">${SUBJECTS[s].map(i=>`<dt>${esc(i.q)}</dt>${dd(f.answers[i.id])}`).join("")}</dl></div>`; });
@@ -423,7 +426,7 @@ function summaryHTML(f){
 }
 function summaryText(f){
   const b = parseBirth(f.birth);
-  const L = ["■ 학생 성향 체크", `* 이름 : ${f.name||"(미입력)"}`, `* 생년월일 : ${b?`${b.text} (한국나이 ${b.korean}살 / 만 ${b.man}세)`:"(미입력)"}`, `* 관심 과목 : ${(f.subjects||[]).join(", ")||"미선택"}`];
+  const L = ["■ 학생 성향 체크", `* 이름 : ${f.name||"(미입력)"}`, `* 생년월일 : ${b?`${b.text} (한국나이 ${b.korean}살 / 만 ${b.man}세)`:"(미입력)"}`, `* 직업 : ${f.job||"(미선택)"}`, `* 관심 과목 : ${(f.subjects||[]).join(", ")||"미선택"}`];
   GROUPS.forEach(g=>{ const got=g.items.filter(i=>(f.answers[i.id]||[]).length); if(!got.length) return; L.push("",`[${g.title}]`); got.forEach(i=>L.push(`* ${i.q} : ${f.answers[i.id].join(", ")}`)); });
   (f.subjects||[]).forEach(s=>{ const got=(SUBJECTS[s]||[]).filter(i=>(f.answers[i.id]||[]).length); if(!got.length) return; L.push("",`[${s}]`); got.forEach(i=>L.push(`* ${i.q} : ${f.answers[i.id].join(", ")}`)); });
   return L.join("\n");
@@ -449,7 +452,8 @@ $("#stage").addEventListener("input", e=>{
 });
 $("#stage").addEventListener("change", e=>{
   const fs = e.target.closest("fieldset"); if(!fs) return;
-  if(fs.dataset.q==="__subj"){ form.subjects = SUBJ_NAMES.filter(n=>fs.querySelector(`input[value="${CSS.escape(n)}"]`).checked); }
+  if(fs.dataset.q==="__job"){ form.job = (fs.querySelector("input:checked")||{}).value || ""; }
+  else if(fs.dataset.q==="__subj"){ form.subjects = SUBJ_NAMES.filter(n=>fs.querySelector(`input[value="${CSS.escape(n)}"]`).checked); }
   else { form.answers[fs.dataset.q] = [...fs.querySelectorAll("input:checked")].map(i=>i.value); }
   saveDraft(); refreshSteps();
 });
@@ -479,7 +483,7 @@ async function doSave(){
   save.disabled=true; save.textContent="저장 중…";
   const b = parseBirth(form.birth);
   const body = {
-    name: form.name.trim(), birth: form.birth.trim(), birthText: b?b.text:"", birthYear: b? +b.text.slice(0,4) : null,
+    name: form.name.trim(), birth: form.birth.trim(), job: form.job||"", birthText: b?b.text:"", birthYear: b? +b.text.slice(0,4) : null,
     subjects: form.subjects.slice(), answers: JSON.parse(JSON.stringify(form.answers)),
     updatedAt: new Date().toISOString(),
   };
@@ -535,7 +539,7 @@ async function renderList(){
   list.innerHTML = rows.map(r=>{
     const b = parseBirth(r.birth);
     const who = ps[r.createdBy]?.name || "";
-    return `<button type="button" class="item" data-id="${esc(r.id)}"><div style="min-width:0"><div class="nm">${esc(r.name||"(이름 없음)")}</div><div class="meta">${b?esc(ageText(b)):"생년월일 미입력"}${who?" · 작성 "+esc(who):""}</div><div class="chips">${(r.subjects||[]).map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div></div><div class="when">${esc(fmt(r.updatedAt))}</div></button>`;
+    return `<button type="button" class="item" data-id="${esc(r.id)}"><div style="min-width:0"><div class="nm">${esc(r.name||"(이름 없음)")}</div><div class="meta">${b?esc(ageText(b)):"생년월일 미입력"}${r.job?" · "+esc(r.job):""}${who?" · 작성 "+esc(who):""}</div><div class="chips">${(r.subjects||[]).map(s=>`<span class="chip">${esc(s)}</span>`).join("")}</div></div><div class="when">${esc(fmt(r.updatedAt))}</div></button>`;
   }).join("");
 }
 $("#list").addEventListener("click", e=>{ const b=e.target.closest(".item"); if(b) openDetail(b.dataset.id); });
@@ -550,7 +554,7 @@ async function openDetail(id){
     <div class="notice" id="d-note" hidden></div>
     <div class="confirm" id="d-confirm" hidden><span>${esc(r.name)} 님 기록을 지울까요? 되돌릴 수 없어요.</span><button type="button" class="btn danger" id="d-yes">삭제</button><button type="button" class="btn" id="d-no">취소</button></div>`;
   $("#d-copy").onclick = ()=>copyText(summaryText(r), $("#d-toast"), $("#d-note"));
-  $("#d-edit").onclick = ()=>{ form = {name:r.name||"", birth:r.birth||"", subjects:(r.subjects||[]).slice(), answers:JSON.parse(JSON.stringify(r.answers||{}))}; editingId = r.id; step = 0; saveDraft(); setView("fill"); render(); };
+  $("#d-edit").onclick = ()=>{ form = {name:r.name||"", birth:r.birth||"", job:r.job||"", subjects:(r.subjects||[]).slice(), answers:JSON.parse(JSON.stringify(r.answers||{}))}; editingId = r.id; step = 0; saveDraft(); setView("fill"); render(); };
   $("#d-del").onclick = ()=>{ $("#d-confirm").hidden=false; };
   $("#d-no").onclick = ()=>{ $("#d-confirm").hidden=true; };
   $("#d-yes").onclick = async ()=>{
